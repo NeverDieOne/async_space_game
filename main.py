@@ -5,8 +5,8 @@ import curses
 import random
 
 TIC_TIMEOUT = 0.1
-SYMBOLS = 'ABCD'  # на буквах лучше видно мигание если делать не в репле
-STARS_AMOUNT = 200
+SYMBOLS = '+*.:'
+STARS_AMOUNT = 100
 
 
 def get_random_xy(max_x, max_y):
@@ -33,7 +33,10 @@ def draw(canvas):
         time.sleep(TIC_TIMEOUT)
 
 
-async def blink(canvas, row, column, symbol='A'):
+async def blink(canvas, row, column, symbol='*'):
+    for _ in range(random.randint(0, STARS_AMOUNT)):
+        await asyncio.sleep(0)
+
     while True:
         canvas.addstr(row, column, symbol, curses.A_DIM)
         for _ in range(20):
