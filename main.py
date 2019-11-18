@@ -6,7 +6,7 @@ import random
 
 TIC_TIMEOUT = 0.1
 SYMBOLS = '+*.:'
-STARS_AMOUNT = 100
+STARS_AMOUNT = 50
 
 
 def get_random_xy(max_x, max_y):
@@ -19,6 +19,7 @@ def draw(canvas):
 
     max_x, max_y = canvas.getmaxyx()
     coroutines = [blink(canvas, *get_random_xy(max_x, max_y), random.choice(SYMBOLS)) for _ in range(STARS_AMOUNT)]
+    coroutines.append(fire(canvas, max_x-2, 15))
 
     while True:
         for coroutine in coroutines:
@@ -34,7 +35,8 @@ def draw(canvas):
 
 
 async def blink(canvas, row, column, symbol='*'):
-    for _ in range(random.randint(0, STARS_AMOUNT)):
+    #  Рандомная задержка для каждой звезды чтобы они были ассинхронны.
+    for _ in range(random.randint(0, 10)):
         await asyncio.sleep(0)
 
     while True:
@@ -53,6 +55,36 @@ async def blink(canvas, row, column, symbol='*'):
         canvas.addstr(row, column, symbol)
         for _ in range(3):
             await asyncio.sleep(0)
+
+
+async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0):
+    """Display animation of gun shot. Direction and speed can be specified."""
+
+    row, column = start_row, start_column
+
+    canvas.addstr(round(row), round(column), '*')
+    await asyncio.sleep(0)
+
+    canvas.addstr(round(row), round(column), 'O')
+    await asyncio.sleep(0)
+    canvas.addstr(round(row), round(column), ' ')
+
+    row += rows_speed
+    column += columns_speed
+
+    symbol = '-' if columns_speed else '|'
+
+    rows, columns = canvas.getmaxyx()
+    max_row, max_column = rows - 1, columns - 1
+
+    curses.beep()
+
+    while 0 < row < max_row and 0 < column < max_column:
+        canvas.addstr(round(row), round(column), symbol)
+        await asyncio.sleep(0)
+        canvas.addstr(round(row), round(column), ' ')
+        row += rows_speed
+        column += columns_speed
 
 
 if __name__ == '__main__':
