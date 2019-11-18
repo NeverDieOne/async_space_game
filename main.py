@@ -3,17 +3,16 @@ import curses
 import asyncio
 import curses
 import random
-from curses_tools import draw_frame, read_controls
+from curses_tools import draw_frame, read_controls, get_frame_size
 import os
 from itertools import cycle
 
 TIC_TIMEOUT = 0.1
-SYMBOLS = 'ABCD'
+SYMBOLS = '+*.:'
 STARS_AMOUNT = 50
 
 
 async def blink(canvas, row, column, symbol='*'):
-    #  Рандомная задержка для каждой звезды чтобы они были ассинхронны.
     for _ in range(random.randint(0, 10)):
         await asyncio.sleep(0)
 
@@ -67,24 +66,31 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
 
 async def animate_spaceship(canvas, row, column, *frames):
     last_frame = None
+    prev_row, prev_column = row, column
+    min_x, min_y = 1, 1
+    max_x, max_y = canvas.getmaxyx()
+
     while True:
         for frame in cycle(frames):
+            delta_row, delta_column, space = read_controls(canvas)
+            frame_rows, frame_columns = get_frame_size(frame)
+
+            if prev_column + delta_column + frame_columns > max_y - 1 or prev_column + delta_column + 1 < min_y + 1:
+                delta_column = 0
+            if prev_row + delta_row + frame_rows > max_x - 1 or prev_row + delta_row + 1 < min_x + 1:
+                delta_row = 0
+
             if last_frame:
-                draw_frame(canvas, row, column, last_frame, negative=True)
-            draw_frame(canvas, row, column, frame)
+                draw_frame(canvas, prev_row, prev_column, last_frame, negative=True)
+
+            prev_row = new_row = prev_row + delta_row
+            prev_column = new_column = prev_column + delta_column
+            draw_frame(canvas, new_row, new_column, frame)
+
             last_frame = frame
+
             for _ in range(2):
                 await asyncio.sleep(0)
-        # row, column, space = read_controls(canvas)
-        # await asyncio.sleep(0)
-        # draw_frame(canvas, row, column, frames[0], negative=True)
-        # draw_frame(canvas, row, column, frames[1])
-        # for _ in range(2):
-        #     await asyncio.sleep(0)
-        # draw_frame(canvas, row, column, frames[1], negative=True)
-        # draw_frame(canvas, row, column, frames[0])
-        # for _ in range(2):
-        #     await asyncio.sleep(0)
 
 
 def get_random_xy(max_x, max_y):
@@ -109,7 +115,6 @@ def draw(canvas):
     max_x, max_y = canvas.getmaxyx()
 
     coroutines = [blink(canvas, *get_random_xy(max_x, max_y), random.choice(SYMBOLS)) for _ in range(STARS_AMOUNT)]
-    coroutines.append(fire(canvas, max_x-2, 15))
     coroutines.append(animate_spaceship(canvas, max_x//2, max_y//2, *rocket_frames))
 
     while True:
