@@ -3,8 +3,9 @@ import curses
 import asyncio
 import curses
 import random
-from curses_tools import draw_frame
+from curses_tools import draw_frame, read_controls
 import os
+from itertools import cycle
 
 TIC_TIMEOUT = 0.1
 SYMBOLS = 'ABCD'
@@ -65,16 +66,25 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
 
 
 async def animate_spaceship(canvas, row, column, *frames):
-    draw_frame(canvas, row, column, frames[0])
+    last_frame = None
     while True:
-        draw_frame(canvas, row, column, frames[0], negative=True)
-        draw_frame(canvas, row, column, frames[1])
-        for _ in range(2):
-            await asyncio.sleep(0)
-        draw_frame(canvas, row, column, frames[1], negative=True)
-        draw_frame(canvas, row, column, frames[0])
-        for _ in range(2):
-            await asyncio.sleep(0)
+        for frame in cycle(frames):
+            if last_frame:
+                draw_frame(canvas, row, column, last_frame, negative=True)
+            draw_frame(canvas, row, column, frame)
+            last_frame = frame
+            for _ in range(2):
+                await asyncio.sleep(0)
+        # row, column, space = read_controls(canvas)
+        # await asyncio.sleep(0)
+        # draw_frame(canvas, row, column, frames[0], negative=True)
+        # draw_frame(canvas, row, column, frames[1])
+        # for _ in range(2):
+        #     await asyncio.sleep(0)
+        # draw_frame(canvas, row, column, frames[1], negative=True)
+        # draw_frame(canvas, row, column, frames[0])
+        # for _ in range(2):
+        #     await asyncio.sleep(0)
 
 
 def get_random_xy(max_x, max_y):
@@ -92,6 +102,7 @@ def get_frames_from_files(frames_dir):
 def draw(canvas):
     curses.curs_set(False)
     canvas.border()
+    canvas.nodelay(True)
 
     rocket_frames = get_frames_from_files('rocket_frames')
 
