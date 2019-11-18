@@ -3,35 +3,14 @@ import curses
 import asyncio
 import curses
 import random
+from curses_tools import draw_frame
+import os
 
 TIC_TIMEOUT = 0.1
-SYMBOLS = '+*.:'
+SYMBOLS = 'ABCD'
 STARS_AMOUNT = 50
 
-
-def get_random_xy(max_x, max_y):
-    return random.randint(1, max_x-2), random.randint(1, max_y-2)
-
-
-def draw(canvas):
-    curses.curs_set(False)
-    canvas.border()
-
-    max_x, max_y = canvas.getmaxyx()
-    coroutines = [blink(canvas, *get_random_xy(max_x, max_y), random.choice(SYMBOLS)) for _ in range(STARS_AMOUNT)]
-    coroutines.append(fire(canvas, max_x-2, 15))
-
-    while True:
-        for coroutine in coroutines:
-            try:
-                coroutine.send(None)
-            except StopIteration:
-                coroutines.remove(coroutine)
-        if len(coroutines) == 0:
-            break
-
-        canvas.refresh()
-        time.sleep(TIC_TIMEOUT)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 async def blink(canvas, row, column, symbol='*'):
@@ -85,6 +64,57 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
         canvas.addstr(round(row), round(column), ' ')
         row += rows_speed
         column += columns_speed
+
+
+async def animate_spaceship(canvas, row, column, *frames):
+    draw_frame(canvas, row, column, frames[0])
+    while True:
+        draw_frame(canvas, row, column, frames[0], negative=True)
+        draw_frame(canvas, row, column, frames[1])
+        for _ in range(2):
+            await asyncio.sleep(0)
+        draw_frame(canvas, row, column, frames[1], negative=True)
+        draw_frame(canvas, row, column, frames[0])
+        for _ in range(2):
+            await asyncio.sleep(0)
+
+
+def get_random_xy(max_x, max_y):
+    return random.randint(1, max_x-2), random.randint(1, max_y-2)
+
+
+def get_frames_from_files(frames_dir):
+    frames = []
+    rocket_dir = os.path.join(BASE_DIR, frames_dir)
+    for frame_file in os.listdir(rocket_dir):
+        with open(os.path.join(rocket_dir, frame_file)) as _file:
+            frames.append(_file.read())
+    return frames
+
+
+def draw(canvas):
+    curses.curs_set(False)
+    canvas.border()
+
+    rocket_frames = get_frames_from_files('rocket_frames')
+
+    max_x, max_y = canvas.getmaxyx()
+
+    coroutines = [blink(canvas, *get_random_xy(max_x, max_y), random.choice(SYMBOLS)) for _ in range(STARS_AMOUNT)]
+    coroutines.append(fire(canvas, max_x-2, 15))
+    coroutines.append(animate_spaceship(canvas, max_x//2, max_y//2, *rocket_frames))
+
+    while True:
+        for coroutine in coroutines:
+            try:
+                coroutine.send(None)
+            except StopIteration:
+                coroutines.remove(coroutine)
+        if len(coroutines) == 0:
+            break
+
+        canvas.refresh()
+        time.sleep(TIC_TIMEOUT)
 
 
 if __name__ == '__main__':
