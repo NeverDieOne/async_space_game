@@ -10,8 +10,6 @@ TIC_TIMEOUT = 0.1
 SYMBOLS = 'ABCD'
 STARS_AMOUNT = 50
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 
 async def blink(canvas, row, column, symbol='*'):
     #  Рандомная задержка для каждой звезды чтобы они были ассинхронны.
@@ -85,9 +83,8 @@ def get_random_xy(max_x, max_y):
 
 def get_frames_from_files(frames_dir):
     frames = []
-    rocket_dir = os.path.join(BASE_DIR, frames_dir)
-    for frame_file in os.listdir(rocket_dir):
-        with open(os.path.join(rocket_dir, frame_file)) as _file:
+    for frame_file in os.listdir(f"{frames_dir}"):
+        with open(f"{frames_dir}/{frame_file}") as _file:
             frames.append(_file.read())
     return frames
 
