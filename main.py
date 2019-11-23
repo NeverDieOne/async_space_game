@@ -1,5 +1,4 @@
 import time
-import curses
 import asyncio
 import curses
 import random
@@ -12,8 +11,8 @@ SYMBOLS = '+*.:'
 STARS_AMOUNT = 50
 
 
-async def blink(canvas, row, column, symbol='*'):
-    for _ in range(random.randint(0, 10)):
+async def blink(canvas, row, column, offset_tics, symbol='*'):
+    for _ in range(offset_tics):
         await asyncio.sleep(0)
 
     while True:
@@ -66,26 +65,28 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
 
 async def animate_spaceship(canvas, row, column, *frames):
     last_frame = None
-    prev_row, prev_column = row, column
     min_x, min_y = 1, 1
-    max_x, max_y = canvas.getmaxyx()
+
+    #  canvas.getmaxyx() return tuple of height and width (https://docs.python.org/2/library/curses.html#curses.window.getmaxyx)
+    height, width = canvas.getmaxyx()
+    max_x, max_y = height - 1, width - 1
 
     while True:
         for frame in cycle(frames):
             delta_row, delta_column, space = read_controls(canvas)
             frame_rows, frame_columns = get_frame_size(frame)
 
-            if prev_column + delta_column + frame_columns > max_y - 1 or prev_column + delta_column + 1 < min_y + 1:
+            if column + delta_column + frame_columns > max_y or column + delta_column + 1 < min_y + 1:
                 delta_column = 0
-            if prev_row + delta_row + frame_rows > max_x - 1 or prev_row + delta_row + 1 < min_x + 1:
+            if row + delta_row + frame_rows > max_x or row + delta_row + 1 < min_x + 1:
                 delta_row = 0
 
             if last_frame:
-                draw_frame(canvas, prev_row, prev_column, last_frame, negative=True)
+                draw_frame(canvas, row, column, last_frame, negative=True)
 
-            prev_row = new_row = prev_row + delta_row
-            prev_column = new_column = prev_column + delta_column
-            draw_frame(canvas, new_row, new_column, frame)
+            row = row + delta_row
+            column = column + delta_column
+            draw_frame(canvas, row, column, frame)
 
             last_frame = frame
 
@@ -94,7 +95,7 @@ async def animate_spaceship(canvas, row, column, *frames):
 
 
 def get_random_xy(max_x, max_y):
-    return random.randint(1, max_x-2), random.randint(1, max_y-2)
+    return random.randint(1, max_x - 2), random.randint(1, max_y - 2)
 
 
 def get_frames_from_files(frames_dir):
@@ -112,19 +113,20 @@ def draw(canvas):
 
     rocket_frames = get_frames_from_files('rocket_frames')
 
-    max_x, max_y = canvas.getmaxyx()
+    #  canvas.getmaxyx() return tuple of height and width (https://docs.python.org/2/library/curses.html#curses.window.getmaxyx)
+    height, width = canvas.getmaxyx()
+    max_x, max_y = height, width
 
-    coroutines = [blink(canvas, *get_random_xy(max_x, max_y), random.choice(SYMBOLS)) for _ in range(STARS_AMOUNT)]
-    coroutines.append(animate_spaceship(canvas, max_x//2, max_y//2, *rocket_frames))
+    coroutines = [blink(canvas, *get_random_xy(max_x, max_y), random.randint(0, 10), random.choice(SYMBOLS)) for _ in
+                  range(STARS_AMOUNT)]
+    coroutines.append(animate_spaceship(canvas, max_x // 2, max_y // 2, *rocket_frames))
 
-    while True:
+    while coroutines:
         for coroutine in coroutines:
             try:
                 coroutine.send(None)
             except StopIteration:
                 coroutines.remove(coroutine)
-        if len(coroutines) == 0:
-            break
 
         canvas.refresh()
         time.sleep(TIC_TIMEOUT)
@@ -133,4 +135,3 @@ def draw(canvas):
 if __name__ == '__main__':
     curses.update_lines_cols()
     curses.wrapper(draw)
-
