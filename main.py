@@ -3,8 +3,8 @@ import asyncio
 import curses
 import random
 from curses_tools import draw_frame, read_controls, get_frame_size
-import os
 from itertools import cycle
+from utils import get_frames_from_files, get_random_xy
 
 TIC_TIMEOUT = 0.1
 SYMBOLS = '+*.:'
@@ -94,16 +94,20 @@ async def animate_spaceship(canvas, row, column, *frames):
                 await asyncio.sleep(0)
 
 
-def get_random_xy(max_x, max_y):
-    return random.randint(1, max_x - 2), random.randint(1, max_y - 2)
+async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
+    """Animate garbage, flying from top to bottom. Сolumn position will stay same, as specified on start."""
+    rows_number, columns_number = canvas.getmaxyx()
 
+    column = max(column, 0)
+    column = min(column, columns_number - 1)
 
-def get_frames_from_files(frames_dir):
-    frames = []
-    for frame_file in os.listdir(f"{frames_dir}"):
-        with open(f"{frames_dir}/{frame_file}") as _file:
-            frames.append(_file.read())
-    return frames
+    row = 0
+
+    while row < rows_number:
+        draw_frame(canvas, row, column, garbage_frame)
+        await asyncio.sleep(0)
+        draw_frame(canvas, row, column, garbage_frame, negative=True)
+        row += speed
 
 
 def draw(canvas):
@@ -112,6 +116,7 @@ def draw(canvas):
     canvas.nodelay(True)
 
     rocket_frames = get_frames_from_files('rocket_frames')
+    garbage_frames = get_frames_from_files('garbage')
 
     #  canvas.getmaxyx() return tuple of height and width (https://docs.python.org/2/library/curses.html#curses.window.getmaxyx)
     height, width = canvas.getmaxyx()
@@ -120,6 +125,7 @@ def draw(canvas):
     coroutines = [blink(canvas, *get_random_xy(max_x, max_y), random.randint(0, 10), random.choice(SYMBOLS)) for _ in
                   range(STARS_AMOUNT)]
     coroutines.append(animate_spaceship(canvas, max_x // 2, max_y // 2, *rocket_frames))
+    coroutines.append(fly_garbage(canvas, 10, random.choice(garbage_frames)))
 
     while coroutines:
         for coroutine in coroutines:
