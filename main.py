@@ -9,6 +9,8 @@ from utils import get_frames_from_files, get_random_xy
 TIC_TIMEOUT = 0.1
 SYMBOLS = '+*.:'
 STARS_AMOUNT = 50
+GARBAGE_AMOUNT = 5
+COROUTINES = []
 
 
 async def blink(canvas, row, column, offset_tics, symbol='*'):
@@ -110,29 +112,42 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
         row += speed
 
 
+async def fill_orbit_with_garbage(canvas):
+    max_columns = canvas.getmaxyx()[1]
+    garbage_frames = get_frames_from_files('garbage')
+
+    garbage_coroutines = [fly_garbage(canvas, random.randint(1, max_columns), random.choice(garbage_frames)) for _ in
+                          range(GARBAGE_AMOUNT)]
+
+    while True:
+        for coroutine in garbage_coroutines:
+            coroutine.send(None)
+            await asyncio.sleep(0)
+
+
 def draw(canvas):
     curses.curs_set(False)
     canvas.border()
     canvas.nodelay(True)
 
     rocket_frames = get_frames_from_files('rocket_frames')
-    garbage_frames = get_frames_from_files('garbage')
+
 
     #  canvas.getmaxyx() return tuple of height and width (https://docs.python.org/2/library/curses.html#curses.window.getmaxyx)
     height, width = canvas.getmaxyx()
     max_x, max_y = height, width
 
-    coroutines = [blink(canvas, *get_random_xy(max_x, max_y), random.randint(0, 10), random.choice(SYMBOLS)) for _ in
-                  range(STARS_AMOUNT)]
-    coroutines.append(animate_spaceship(canvas, max_x // 2, max_y // 2, *rocket_frames))
-    coroutines.append(fly_garbage(canvas, 10, random.choice(garbage_frames)))
+    COROUTINES.extend([blink(canvas, *get_random_xy(max_x, max_y), random.randint(0, 10), random.choice(SYMBOLS)) for _ in
+                  range(STARS_AMOUNT)])
+    COROUTINES.append(animate_spaceship(canvas, max_x // 2, max_y // 2, *rocket_frames))
+    COROUTINES.append(fill_orbit_with_garbage(canvas))
 
-    while coroutines:
-        for coroutine in coroutines:
+    while COROUTINES:
+        for coroutine in COROUTINES:
             try:
                 coroutine.send(None)
             except StopIteration:
-                coroutines.remove(coroutine)
+                COROUTINES.remove(coroutine)
 
         canvas.refresh()
         time.sleep(TIC_TIMEOUT)
