@@ -8,8 +8,7 @@ from utils import get_frames_from_files, get_random_xy
 
 TIC_TIMEOUT = 0.1
 SYMBOLS = '+*.:'
-STARS_AMOUNT = 50
-GARBAGE_AMOUNT = 5
+STARS_AMOUNT = 200
 COROUTINES = []
 
 
@@ -65,7 +64,7 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
         column += columns_speed
 
 
-async def animate_spaceship(canvas, row, column, *frames):
+async def animate_spaceship(canvas, row, column, rocket_frames):
     last_frame = None
     min_x, min_y = 1, 1
 
@@ -74,7 +73,7 @@ async def animate_spaceship(canvas, row, column, *frames):
     max_x, max_y = height - 1, width - 1
 
     while True:
-        for frame in cycle(frames):
+        for frame in cycle(rocket_frames):
             delta_row, delta_column, space = read_controls(canvas)
             frame_rows, frame_columns = get_frame_size(frame)
 
@@ -112,17 +111,13 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
         row += speed
 
 
-async def fill_orbit_with_garbage(canvas):
+async def fill_orbit_with_garbage(canvas, garbage_frames, offset_appear):
     max_columns = canvas.getmaxyx()[1]
-    garbage_frames = get_frames_from_files('garbage')
-
-    garbage_coroutines = [fly_garbage(canvas, random.randint(1, max_columns), random.choice(garbage_frames)) for _ in
-                          range(GARBAGE_AMOUNT)]
 
     while True:
-        for coroutine in garbage_coroutines:
-            coroutine.send(None)
+        for _ in range(offset_appear):
             await asyncio.sleep(0)
+        COROUTINES.append(fly_garbage(canvas, random.randint(1, max_columns), random.choice(garbage_frames)))
 
 
 def draw(canvas):
@@ -131,16 +126,18 @@ def draw(canvas):
     canvas.nodelay(True)
 
     rocket_frames = get_frames_from_files('rocket_frames')
-
+    garbage_frames = get_frames_from_files('garbage')
 
     #  canvas.getmaxyx() return tuple of height and width (https://docs.python.org/2/library/curses.html#curses.window.getmaxyx)
     height, width = canvas.getmaxyx()
     max_x, max_y = height, width
 
-    COROUTINES.extend([blink(canvas, *get_random_xy(max_x, max_y), random.randint(0, 10), random.choice(SYMBOLS)) for _ in
-                  range(STARS_AMOUNT)])
-    COROUTINES.append(animate_spaceship(canvas, max_x // 2, max_y // 2, *rocket_frames))
-    COROUTINES.append(fill_orbit_with_garbage(canvas))
+    COROUTINES.extend([
+        blink(canvas, *get_random_xy(max_x, max_y), random.randint(0, 10), random.choice(SYMBOLS)) for _ in
+        range(STARS_AMOUNT)
+    ])
+    COROUTINES.append(animate_spaceship(canvas, max_x // 2, max_y // 2, rocket_frames))
+    COROUTINES.append(fill_orbit_with_garbage(canvas, garbage_frames, random.randint(1, 10)))
 
     while COROUTINES:
         for coroutine in COROUTINES:
