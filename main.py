@@ -13,25 +13,20 @@ COROUTINES = []
 
 
 async def blink(canvas, row, column, offset_tics, symbol='*'):
-    for _ in range(offset_tics):
-        await asyncio.sleep(0)
+    await sleep(offset_tics)
 
     while True:
         canvas.addstr(row, column, symbol, curses.A_DIM)
-        for _ in range(20):
-            await asyncio.sleep(0)
+        await sleep(20)
 
         canvas.addstr(row, column, symbol)
-        for _ in range(3):
-            await asyncio.sleep(0)
+        await sleep(3)
 
         canvas.addstr(row, column, symbol, curses.A_BOLD)
-        for _ in range(5):
-            await asyncio.sleep(0)
+        await sleep(5)
 
         canvas.addstr(row, column, symbol)
-        for _ in range(3):
-            await asyncio.sleep(0)
+        await sleep(3)
 
 
 async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0):
@@ -90,9 +85,7 @@ async def animate_spaceship(canvas, row, column, rocket_frames):
             draw_frame(canvas, row, column, frame)
 
             last_frame = frame
-
-            for _ in range(2):
-                await asyncio.sleep(0)
+            await sleep(2)
 
 
 async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
@@ -115,9 +108,13 @@ async def fill_orbit_with_garbage(canvas, garbage_frames, offset_appear):
     max_columns = canvas.getmaxyx()[1]
 
     while True:
-        for _ in range(offset_appear):
-            await asyncio.sleep(0)
+        await sleep(offset_appear)
         COROUTINES.append(fly_garbage(canvas, random.randint(1, max_columns), random.choice(garbage_frames)))
+
+
+async def sleep(tics=1):
+    for _ in range(tics):
+        await asyncio.sleep(0)
 
 
 def draw(canvas):
