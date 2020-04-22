@@ -11,6 +11,8 @@ SYMBOLS = '+*.:'
 STARS_AMOUNT = 200
 COROUTINES = []
 
+SPACESHIP_FRAME = ''
+
 
 async def blink(canvas, row, column, offset_tics, symbol='*'):
     await sleep(offset_tics)
@@ -59,7 +61,13 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
         column += columns_speed
 
 
-async def animate_spaceship(canvas, row, column, rocket_frames):
+async def animate_spaceship():
+    global SPACESHIP_FRAME
+
+
+async def run_spaceship(canvas, row, column, rocket_frames):
+    global SPACESHIP_FRAME
+
     last_frame = None
     min_x, min_y = 1, 1
 
@@ -133,7 +141,7 @@ def draw(canvas):
         blink(canvas, *get_random_xy(max_x, max_y), random.randint(0, 10), random.choice(SYMBOLS)) for _ in
         range(STARS_AMOUNT)
     ])
-    COROUTINES.append(animate_spaceship(canvas, max_x // 2, max_y // 2, rocket_frames))
+    COROUTINES.append(run_spaceship(canvas, max_x // 2, max_y // 2, rocket_frames))
     COROUTINES.append(fill_orbit_with_garbage(canvas, garbage_frames, random.randint(1, 10)))
 
     while COROUTINES:
