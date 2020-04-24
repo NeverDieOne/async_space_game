@@ -14,6 +14,7 @@ STARS_AMOUNT = 50
 COROUTINES = []
 OBSTACLES = []
 SPACESHIP_FRAME = ''
+OBSTACLES_IN_LAST_COLLISION = []
 
 
 async def blink(canvas, row, column, offset_tics, symbol='*'):
@@ -61,6 +62,12 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.5, columns_speed=0
         canvas.addstr(round(row), round(column), ' ')
         row += rows_speed
         column += columns_speed
+
+        for obstacle in OBSTACLES:
+            obj_corner = row, column
+            if obstacle.has_collision(*obj_corner):
+                OBSTACLES_IN_LAST_COLLISION.append(obstacle)
+                return None
 
 
 async def animate_spaceship(rocket_frames):
@@ -127,6 +134,11 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
         draw_frame(canvas, row, column, garbage_frame, negative=True)
         row += speed
         garbage_obstacle_frame.row += speed
+
+        for obstacle in OBSTACLES_IN_LAST_COLLISION:
+            if garbage_obstacle_frame is obstacle:
+                OBSTACLES.remove(garbage_obstacle_frame)
+                return
 
 
 async def fill_orbit_with_garbage(canvas, garbage_frames, offset_appear):
