@@ -16,6 +16,17 @@ COROUTINES = []
 OBSTACLES = []
 SPACESHIP_FRAME = ''
 OBSTACLES_IN_LAST_COLLISION = []
+YEAR = 1957
+PHRASES = {
+    1957: "First Sputnik",
+    1961: "Gagarin flew!",
+    1969: "Armstrong got on the moon!",
+    1971: "First orbital space station Salute-1",
+    1981: "Flight of the Shuttle Columbia",
+    1998: 'ISS start building',
+    2011: 'Messenger launch to Mercury',
+    2020: "Take the plasma gun! Shoot the garbage!",
+}
 
 
 async def blink(canvas, row, column, offset_tics, symbol='*'):
@@ -33,6 +44,12 @@ async def blink(canvas, row, column, offset_tics, symbol='*'):
 
         canvas.addstr(row, column, symbol)
         await sleep(3)
+
+
+async def show_phrase(canvas):
+    while True:
+        draw_frame(canvas, 0, 0, PHRASES[YEAR])
+        await sleep(1)
 
 
 async def fire(canvas, start_row, start_column, rows_speed=-0.5, columns_speed=0):
@@ -79,6 +96,13 @@ async def animate_spaceship(rocket_frames):
         await sleep(2)
 
 
+async def print_game_over(canvas, raw, column, text):
+    while True:
+        draw_frame(canvas, raw, column, text)
+        await sleep(1)
+
+
+
 async def run_spaceship(canvas, row, column):
     global SPACESHIP_FRAME
     last_frame = SPACESHIP_FRAME
@@ -113,14 +137,11 @@ async def run_spaceship(canvas, row, column):
         for obstacle in OBSTACLES:
             obj_corner = row, column
             if obstacle.has_collision(*obj_corner):
-
                 with open('game_over_frame.txt', 'r') as game_over_file:
                     game_over_text = game_over_file.read()
-
                 game_over_x, game_over_y = get_frame_size(game_over_text)
-
+                COROUTINES.append(print_game_over(canvas, max_x / 2 - game_over_x, max_y / 2 - game_over_y / 2, game_over_text))
                 draw_frame(canvas, row, column, last_frame, negative=True)
-                draw_frame(canvas, max_x / 2 - game_over_x, max_y / 2 - game_over_y / 2, game_over_text)
                 return
 
         last_frame = SPACESHIP_FRAME
@@ -171,7 +192,6 @@ async def sleep(tics=1):
 
 def draw(canvas):
     curses.curs_set(False)
-    canvas.border()
     canvas.nodelay(True)
 
     rocket_frames = get_frames_from_files('rocket_frames')
@@ -181,6 +201,8 @@ def draw(canvas):
     height, width = canvas.getmaxyx()
     max_x, max_y = height, width
 
+    canvas_for_phrase = canvas.derwin(max_x - 2, max_y // 2)
+
     COROUTINES.extend([
         blink(canvas, *get_random_xy(max_x, max_y), random.randint(0, 10), random.choice(SYMBOLS)) for _ in
         range(STARS_AMOUNT)
@@ -188,10 +210,12 @@ def draw(canvas):
     COROUTINES.append(animate_spaceship(rocket_frames))
     COROUTINES.append(run_spaceship(canvas, max_x // 2, max_y // 2))
     COROUTINES.append(fill_orbit_with_garbage(canvas, garbage_frames, random.randint(20, 30)))
-    COROUTINES.append(show_obstacles(canvas, OBSTACLES))
+    # COROUTINES.append(show_obstacles(canvas, OBSTACLES))
+    COROUTINES.append(show_phrase(canvas_for_phrase))
 
     while COROUTINES:
         for coroutine in COROUTINES:
+            canvas.border()
             try:
                 coroutine.send(None)
             except StopIteration:
