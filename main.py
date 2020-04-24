@@ -7,6 +7,7 @@ from itertools import cycle
 from utils import get_frames_from_files, get_random_xy
 from physics import update_speed
 from obstacles import show_obstacles, Obstacle
+from explosion import explode
 
 TIC_TIMEOUT = 0.1
 SYMBOLS = '+*.:'
@@ -138,6 +139,7 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
         for obstacle in OBSTACLES_IN_LAST_COLLISION:
             if garbage_obstacle_frame is obstacle:
                 OBSTACLES.remove(garbage_obstacle_frame)
+                await explode(canvas, row, column)
                 return
 
 
