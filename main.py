@@ -94,7 +94,6 @@ async def run_spaceship(canvas, row, column):
             column_speed = 0
         if row + delta_row + frame_rows > max_x or row + delta_row + 1 < min_x + 1:
             row_speed = 0
-
         if last_frame:
             draw_frame(canvas, row, column, last_frame, negative=True)
 
