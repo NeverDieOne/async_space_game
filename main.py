@@ -29,6 +29,14 @@ PHRASES = {
 }
 
 
+async def change_year():
+    global YEAR
+
+    while True:
+        await sleep(15)
+        YEAR += 1
+
+
 async def blink(canvas, row, column, offset_tics, symbol='*'):
     await sleep(offset_tics)
 
@@ -48,11 +56,18 @@ async def blink(canvas, row, column, offset_tics, symbol='*'):
 
 async def show_phrase(canvas):
     while True:
-        draw_frame(canvas, 0, 0, PHRASES[YEAR])
+        try:
+            draw_frame(canvas, 0, 0, f'Year - {YEAR}: {PHRASES[YEAR]}')
+        except KeyError:
+            try:
+                draw_frame(canvas, 0, 0, f'Year - {YEAR-1}: {PHRASES[YEAR-1]}', negative=True)
+            except KeyError:
+                pass
+            draw_frame(canvas, 0, 0, f'Year - {YEAR}')
         await sleep(1)
 
 
-async def fire(canvas, start_row, start_column, rows_speed=-0.5, columns_speed=0):
+async def fire(canvas, start_row, start_column, rows_speed=-1, columns_speed=0):
     """Display animation of gun shot. Direction and speed can be specified."""
 
     row, column = start_row, start_column
@@ -102,7 +117,6 @@ async def print_game_over(canvas, raw, column, text):
         await sleep(1)
 
 
-
 async def run_spaceship(canvas, row, column):
     global SPACESHIP_FRAME
     last_frame = SPACESHIP_FRAME
@@ -142,13 +156,14 @@ async def run_spaceship(canvas, row, column):
                 game_over_x, game_over_y = get_frame_size(game_over_text)
                 COROUTINES.append(print_game_over(canvas, max_x / 2 - game_over_x, max_y / 2 - game_over_y / 2, game_over_text))
                 draw_frame(canvas, row, column, last_frame, negative=True)
+                draw_frame(canvas, row, column, SPACESHIP_FRAME, negative=True)
                 return
 
         last_frame = SPACESHIP_FRAME
         await sleep(1)
 
 
-async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
+async def fly_garbage(canvas, column, garbage_frame, speed=1):
     global OBSTACLES
     """Animate garbage, flying from top to bottom. Сolumn position will stay same, as specified on start."""
     rows_number, columns_number = canvas.getmaxyx()
@@ -177,10 +192,31 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
                 return
 
 
-async def fill_orbit_with_garbage(canvas, garbage_frames, offset_appear):
+def get_garbage_delay_tics(year):
+    if year < 1961:
+        return None
+    elif year < 1969:
+        return 20
+    elif year < 1981:
+        return 14
+    elif year < 1995:
+        return 10
+    elif year < 2010:
+        return 8
+    elif year < 2020:
+        return 6
+    else:
+        return 2
+
+
+async def fill_orbit_with_garbage(canvas, garbage_frames):
     max_columns = canvas.getmaxyx()[1]
 
     while True:
+        offset_appear = get_garbage_delay_tics(YEAR)
+        if not offset_appear:
+            await sleep(1)
+            continue
         await sleep(offset_appear)
         COROUTINES.append(fly_garbage(canvas, random.randint(1, max_columns), random.choice(garbage_frames)))
 
@@ -209,9 +245,10 @@ def draw(canvas):
     ])
     COROUTINES.append(animate_spaceship(rocket_frames))
     COROUTINES.append(run_spaceship(canvas, max_x // 2, max_y // 2))
-    COROUTINES.append(fill_orbit_with_garbage(canvas, garbage_frames, random.randint(20, 30)))
-    # COROUTINES.append(show_obstacles(canvas, OBSTACLES))
+    COROUTINES.append(fill_orbit_with_garbage(canvas, garbage_frames))
+    # COROUTINES.append(show_obstacles(canvas, OBSTACLES))  - добавление рамок для мусора
     COROUTINES.append(show_phrase(canvas_for_phrase))
+    COROUTINES.append(change_year())
 
     while COROUTINES:
         for coroutine in COROUTINES:
