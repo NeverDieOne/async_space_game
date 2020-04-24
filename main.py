@@ -6,6 +6,7 @@ from curses_tools import draw_frame, read_controls, get_frame_size
 from itertools import cycle
 from utils import get_frames_from_files, get_random_xy
 from physics import update_speed
+from obstacles import show_obstacles, Obstacle
 
 TIC_TIMEOUT = 0.1
 SYMBOLS = '+*.:'
@@ -106,6 +107,7 @@ async def run_spaceship(canvas, row, column):
 
 
 async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
+    global OBSTACLES
     """Animate garbage, flying from top to bottom. Сolumn position will stay same, as specified on start."""
     rows_number, columns_number = canvas.getmaxyx()
 
@@ -114,11 +116,17 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
 
     row = 0
 
+    obstacle_row_size, obstacle_column_size = get_frame_size(garbage_frame)
+    garbage_obstacle_frame = Obstacle(row, column, obstacle_row_size, obstacle_column_size)
+    OBSTACLES.append(garbage_obstacle_frame)
+
+    await sleep(1)
     while row < rows_number:
         draw_frame(canvas, row, column, garbage_frame)
         await asyncio.sleep(0)
         draw_frame(canvas, row, column, garbage_frame, negative=True)
         row += speed
+        garbage_obstacle_frame.row += speed
 
 
 async def fill_orbit_with_garbage(canvas, garbage_frames, offset_appear):
@@ -153,6 +161,7 @@ def draw(canvas):
     COROUTINES.append(animate_spaceship(rocket_frames))
     COROUTINES.append(run_spaceship(canvas, max_x // 2, max_y // 2))
     COROUTINES.append(fill_orbit_with_garbage(canvas, garbage_frames, random.randint(20, 30)))
+    COROUTINES.append(show_obstacles(canvas, OBSTACLES))
 
     while COROUTINES:
         for coroutine in COROUTINES:
