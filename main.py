@@ -5,12 +5,13 @@ import random
 from curses_tools import draw_frame, read_controls, get_frame_size
 from itertools import cycle
 from utils import get_frames_from_files, get_random_xy
+from physics import update_speed
 
 TIC_TIMEOUT = 0.1
 SYMBOLS = '+*.:'
-STARS_AMOUNT = 200
+STARS_AMOUNT = 50
 COROUTINES = []
-
+OBSTACLES = []
 SPACESHIP_FRAME = ''
 
 
@@ -31,7 +32,7 @@ async def blink(canvas, row, column, offset_tics, symbol='*'):
         await sleep(3)
 
 
-async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0):
+async def fire(canvas, start_row, start_column, rows_speed=-0.5, columns_speed=0):
     """Display animation of gun shot. Direction and speed can be specified."""
 
     row, column = start_row, start_column
@@ -61,39 +62,48 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
         column += columns_speed
 
 
-async def animate_spaceship():
+async def animate_spaceship(rocket_frames):
     global SPACESHIP_FRAME
 
+    for frame in cycle(rocket_frames):
+        SPACESHIP_FRAME = frame
+        await sleep(2)
 
-async def run_spaceship(canvas, row, column, rocket_frames):
+
+async def run_spaceship(canvas, row, column):
     global SPACESHIP_FRAME
+    last_frame = SPACESHIP_FRAME
 
-    last_frame = None
     min_x, min_y = 1, 1
 
     #  canvas.getmaxyx() return tuple of height and width (https://docs.python.org/2/library/curses.html#curses.window.getmaxyx)
     height, width = canvas.getmaxyx()
     max_x, max_y = height - 1, width - 1
+    row_speed = column_speed = 0
 
     while True:
-        for frame in cycle(rocket_frames):
-            delta_row, delta_column, space = read_controls(canvas)
-            frame_rows, frame_columns = get_frame_size(frame)
+        delta_row, delta_column, space = read_controls(canvas)
+        frame_rows, frame_columns = get_frame_size(SPACESHIP_FRAME)
 
-            if column + delta_column + frame_columns > max_y or column + delta_column + 1 < min_y + 1:
-                delta_column = 0
-            if row + delta_row + frame_rows > max_x or row + delta_row + 1 < min_x + 1:
-                delta_row = 0
+        if space:
+            COROUTINES.append(fire(canvas, row - 1, column + 2))
 
-            if last_frame:
-                draw_frame(canvas, row, column, last_frame, negative=True)
+        row_speed, column_speed = update_speed(row_speed, column_speed, delta_row, delta_column)
 
-            row = row + delta_row
-            column = column + delta_column
-            draw_frame(canvas, row, column, frame)
+        if column + delta_column + frame_columns > max_y or column + delta_column + 1 < min_y + 1:
+            column_speed = 0
+        if row + delta_row + frame_rows > max_x or row + delta_row + 1 < min_x + 1:
+            row_speed = 0
 
-            last_frame = frame
-            await sleep(2)
+        if last_frame:
+            draw_frame(canvas, row, column, last_frame, negative=True)
+
+        row += row_speed
+        column += column_speed
+        draw_frame(canvas, row, column, SPACESHIP_FRAME)
+
+        last_frame = SPACESHIP_FRAME
+        await sleep(1)
 
 
 async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
@@ -141,8 +151,9 @@ def draw(canvas):
         blink(canvas, *get_random_xy(max_x, max_y), random.randint(0, 10), random.choice(SYMBOLS)) for _ in
         range(STARS_AMOUNT)
     ])
-    COROUTINES.append(run_spaceship(canvas, max_x // 2, max_y // 2, rocket_frames))
-    COROUTINES.append(fill_orbit_with_garbage(canvas, garbage_frames, random.randint(1, 10)))
+    COROUTINES.append(animate_spaceship(rocket_frames))
+    COROUTINES.append(run_spaceship(canvas, max_x // 2, max_y // 2))
+    COROUTINES.append(fill_orbit_with_garbage(canvas, garbage_frames, random.randint(20, 30)))
 
     while COROUTINES:
         for coroutine in COROUTINES:
