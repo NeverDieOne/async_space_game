@@ -110,6 +110,19 @@ async def run_spaceship(canvas, row, column):
         column += column_speed
         draw_frame(canvas, row, column, SPACESHIP_FRAME)
 
+        for obstacle in OBSTACLES:
+            obj_corner = row, column
+            if obstacle.has_collision(*obj_corner):
+
+                with open('game_over_frame.txt', 'r') as game_over_file:
+                    game_over_text = game_over_file.read()
+
+                game_over_x, game_over_y = get_frame_size(game_over_text)
+
+                draw_frame(canvas, row, column, last_frame, negative=True)
+                draw_frame(canvas, max_x / 2 - game_over_x, max_y / 2 - game_over_y / 2, game_over_text)
+                return
+
         last_frame = SPACESHIP_FRAME
         await sleep(1)
 
