@@ -16,6 +16,7 @@ COROUTINES = []
 OBSTACLES = []
 SPACESHIP_FRAME = ''
 OBSTACLES_IN_LAST_COLLISION = []
+DEBUG = False
 YEAR = 1957
 PHRASES = {
     1957: "First Sputnik",
@@ -60,7 +61,7 @@ async def show_phrase(canvas):
             draw_frame(canvas, 0, 0, f'Year - {YEAR}: {PHRASES[YEAR]}')
         except KeyError:
             try:
-                draw_frame(canvas, 0, 0, f'Year - {YEAR-1}: {PHRASES[YEAR-1]}', negative=True)
+                draw_frame(canvas, 0, 0, f'Year - {YEAR - 1}: {PHRASES[YEAR - 1]}', negative=True)
             except KeyError:
                 pass
             draw_frame(canvas, 0, 0, f'Year - {YEAR}')
@@ -132,7 +133,7 @@ async def run_spaceship(canvas, row, column):
         delta_row, delta_column, space = read_controls(canvas)
         frame_rows, frame_columns = get_frame_size(SPACESHIP_FRAME)
 
-        if space:
+        if space and YEAR >= 2020:
             COROUTINES.append(fire(canvas, row - 1, column + 2))
 
         row_speed, column_speed = update_speed(row_speed, column_speed, delta_row, delta_column)
@@ -164,8 +165,8 @@ async def run_spaceship(canvas, row, column):
 
 
 async def fly_garbage(canvas, column, garbage_frame, speed=1):
-    global OBSTACLES
     """Animate garbage, flying from top to bottom. Сolumn position will stay same, as specified on start."""
+    global OBSTACLES
     rows_number, columns_number = canvas.getmaxyx()
 
     column = max(column, 0)
@@ -210,7 +211,7 @@ def get_garbage_delay_tics(year):
 
 
 async def fill_orbit_with_garbage(canvas, garbage_frames):
-    max_columns = canvas.getmaxyx()[1]
+    max_width = canvas.getmaxyx()[1]
 
     while True:
         offset_appear = get_garbage_delay_tics(YEAR)
@@ -218,7 +219,7 @@ async def fill_orbit_with_garbage(canvas, garbage_frames):
             await sleep(1)
             continue
         await sleep(offset_appear)
-        COROUTINES.append(fly_garbage(canvas, random.randint(1, max_columns), random.choice(garbage_frames)))
+        COROUTINES.append(fly_garbage(canvas, random.randint(1, max_width), random.choice(garbage_frames)))
 
 
 async def sleep(tics=1):
@@ -235,23 +236,26 @@ def draw(canvas):
 
     #  canvas.getmaxyx() return tuple of height and width (https://docs.python.org/2/library/curses.html#curses.window.getmaxyx)
     height, width = canvas.getmaxyx()
-    max_x, max_y = height, width
+    max_x, max_y = height - 1, width - 1
 
     canvas_for_phrase = canvas.derwin(max_x - 2, max_y // 2)
 
+    COROUTINES.extend(
+        [blink(canvas, *get_random_xy(max_x, max_y), random.randint(0, 10), random.choice(SYMBOLS)) for _ in
+         range(STARS_AMOUNT)]
+    )
     COROUTINES.extend([
-        blink(canvas, *get_random_xy(max_x, max_y), random.randint(0, 10), random.choice(SYMBOLS)) for _ in
-        range(STARS_AMOUNT)
+        animate_spaceship(rocket_frames),
+        run_spaceship(canvas, max_x // 2, max_y // 2),
+        fill_orbit_with_garbage(canvas, garbage_frames),
+        show_phrase(canvas_for_phrase),
+        change_year()
     ])
-    COROUTINES.append(animate_spaceship(rocket_frames))
-    COROUTINES.append(run_spaceship(canvas, max_x // 2, max_y // 2))
-    COROUTINES.append(fill_orbit_with_garbage(canvas, garbage_frames))
-    # COROUTINES.append(show_obstacles(canvas, OBSTACLES))  - добавление рамок для мусора
-    COROUTINES.append(show_phrase(canvas_for_phrase))
-    COROUTINES.append(change_year())
+    if DEBUG:
+        COROUTINES.append(show_obstacles(canvas, OBSTACLES))  # добавление рамок для мусора
 
     while COROUTINES:
-        for coroutine in COROUTINES:
+        for coroutine in COROUTINES.copy():
             canvas.border()
             try:
                 coroutine.send(None)
